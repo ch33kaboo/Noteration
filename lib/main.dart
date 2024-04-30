@@ -29,7 +29,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   List<String> notes = [];
   String selectedNote = '';
-  int indexo = 0;
+  // int indexo = 0;
 
   // Function to toggle selectedNote
   void toggleSelectedNote() {
@@ -214,8 +214,8 @@ class _HomePageState extends State<HomePage> {
                 setState(() {
                   notes.add(noteController.text);
                 });
-                DatabaseHelper.insertNote(
-                    Note(id: indexo, content: noteController.text));
+                // DatabaseHelper.insertNote(
+                //     Note(id: indexo, content: noteController.text));
                 Navigator.pop(context);
               },
               child: Text('Add'),
@@ -242,14 +242,17 @@ class _HomePageState extends State<HomePage> {
             ),
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
                 setState(() {
-                  notes.removeAt(index);
-                  if (selectedNote == notes[index]) {
-                    selectedNote = '';
+                  if (index >= 0 && index < notes.length) {
+                    // Check if index is valid before removing
+                    if (selectedNote == notes[index]) {
+                      // If the note being deleted is selected, clear selectedNote
+                      selectedNote = '';
+                    }
+                    notes.removeAt(index);
                   }
-                  DatabaseHelper.deleteNote(indexo);
                 });
+                Navigator.pop(context);
               },
               child: Text('Yes'),
             ),
