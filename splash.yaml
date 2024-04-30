@@ -1,0 +1,13 @@
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: assets/images/Normal (Healthy Weight).png
+  color_dark: "#FFFFFF"
+  image_dark: assets/images/Normal (Healthy Weight).png
+
+  android_12:
+    color: "#FFFFFF"
+    image: assets/images/Normal (Healthy Weight).png
+    color_dark: "#FFFFFF"
+    image_dark: assets/images/Normal (Healthy Weight).png
+
+  web: false
