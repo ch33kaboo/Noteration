@@ -1,50 +1,58 @@
-// database_helper.dart
-
-import 'package:sqflite/sqflite.dart';
+import 'dart:async';
 import 'package:path/path.dart';
+import 'package:sqflite/sqflite.dart';
 import 'note_model.dart';
 
 class DatabaseHelper {
-  static Future<Database> initDatabase() async {
-    return openDatabase(
-      join(await getDatabasesPath(), 'notes_database.db'),
-      onCreate: (db, version) {
-        return db.execute(
-          'CREATE TABLE notes(id INTEGER PRIMARY KEY, content TEXT)',
-        );
-      },
-      version: 1,
-    );
+  static final DatabaseHelper _instance = DatabaseHelper._internal();
+
+  factory DatabaseHelper() => _instance;
+
+  DatabaseHelper._internal();
+
+  static Database? _database;
+
+  Future<Database> get database async {
+    if (_database != null) return _database!;
+    _database = await initDatabase();
+    return _database!;
   }
 
-  static Future<List<Note>> getNotes() async {
-    final Database db = await initDatabase();
-    final List<Map<String, dynamic>> maps = await db.query('notes');
+  Future<Database> initDatabase() async {
+    // Get a location using getDatabasesPath
+    final databasesPath = await getDatabasesPath();
+    final path = join(databasesPath, 'notes.db');
 
-    // Convert the List<Map<String, dynamic>> into a List<Note>
+    // Open/create the database at a given path
+    return await openDatabase(path, version: 1, onCreate: _createDb);
+  }
+
+  Future<void> _createDb(Database db, int version) async {
+    // Create the notes table
+    await db.execute('''
+      CREATE TABLE notes(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        note TEXT,
+        timestamp TEXT
+      )
+    ''');
+  }
+
+  Future<int> insert(Note note) async {
+    final db = await database;
+    return await db.insert('notes', note.toMap());
+  }
+
+  Future<List<Note>> getAllNotes() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query('notes');
     return List.generate(maps.length, (i) {
-      return Note(
-        id: maps[i]['id'],
-        content: maps[i]['content'],
-      );
+      return Note.fromMap(maps[i]);
     });
   }
 
-  static Future<void> insertNote(Note note) async {
-    final Database db = await initDatabase();
-    await db.insert(
-      'notes',
-      note.toMap(),
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
-  }
-
-  static Future<void> deleteNote(int id) async {
-    final db = await initDatabase();
-    await db.delete(
-      'notes',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+  Future<void> delete(int id) async {
+    final db = await database;
+    await db.delete('notes', where: 'id = ?', whereArgs: [id]);
   }
 }

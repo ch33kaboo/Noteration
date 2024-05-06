@@ -1,9 +1,5 @@
 import 'package:flutter/material.dart';
 import 'note_detail_page.dart';
-
-import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart';
-
 import 'database_helper.dart';
 import 'note_model.dart';
 
@@ -27,14 +23,20 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  List<String> notes = [];
+  List<Note> notes = []; // Update notes list to hold Note objects
   String selectedNote = '';
-  // int indexo = 0;
 
-  // Function to toggle selectedNote
-  void toggleSelectedNote() {
+  @override
+  void initState() {
+    super.initState();
+    _fetchNotesFromDatabase();
+  }
+
+  Future<void> _fetchNotesFromDatabase() async {
+    DatabaseHelper databaseHelper = DatabaseHelper();
+    List<Note> fetchedNotes = await databaseHelper.getAllNotes();
     setState(() {
-      selectedNote = ''; // Clear selectedNote
+      notes = fetchedNotes;
     });
   }
 
@@ -43,14 +45,16 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Notes App'),
-        backgroundColor:
-            Colors.deepPurple[50], // Light purple color for app bar
+        backgroundColor: Colors.deepPurple[50],
         actions: [
           if (selectedNote.isNotEmpty)
             IconButton(
-              icon: Icon(Icons.close), // Icon for hiding note details
-              onPressed:
-                  toggleSelectedNote, // Call function to clear selectedNote
+              icon: Icon(Icons.close),
+              onPressed: () {
+                setState(() {
+                  selectedNote = '';
+                });
+              },
             ),
           IconButton(
             icon: Icon(Icons.add),
@@ -60,115 +64,7 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      body: OrientationBuilder(
-        builder: (context, orientation) {
-          if (notes.isEmpty) {
-            // Display a message and image when there are no notes
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'No notes found.',
-                    style: TextStyle(fontSize: 18),
-                  ),
-                  SizedBox(height: 20), // Adjust spacing as needed
-                  SizedBox(
-                    width: 120, // Specify desired width
-                    height: 120, // Specify desired height
-                    child: Image.asset('assets/images/no-data-icon.png'),
-                  ),
-                ],
-              ),
-            );
-          } else if (orientation == Orientation.landscape) {
-            return Row(
-              children: [
-                Expanded(
-                  flex: 1,
-                  child: ListView.builder(
-                    itemCount: notes.length,
-                    itemBuilder: (context, index) {
-                      return Container(
-                        margin: EdgeInsets.symmetric(
-                            vertical: 4, horizontal: 8), // Add margin
-                        decoration: BoxDecoration(
-                          color: Colors
-                              .purple[50], // Light purple background color
-                          borderRadius:
-                              BorderRadius.circular(10), // Rounded borders
-                        ),
-                        child: ListTile(
-                          title: Text(
-                            _truncateText(notes[index], orientation),
-                          ),
-                          onTap: () {
-                            setState(() {
-                              selectedNote = notes[index];
-                            });
-                          },
-                          onLongPress: () {
-                            _showDeleteDialog(context, index);
-                          },
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                if (selectedNote.isNotEmpty)
-                  Container(
-                    width: 1,
-                    color: Colors.grey,
-                    height: double.infinity,
-                  ),
-                Expanded(
-                  flex: selectedNote.isNotEmpty
-                      ? 2
-                      : 0, // Conditionally render based on selectedNote
-                  child: selectedNote.isNotEmpty
-                      ? NoteDetailPage(
-                          note: selectedNote,
-                          timestamp: DateTime.now(),
-                        )
-                      : Container(), // Use Container() as the default value
-                ),
-              ],
-            );
-          } else {
-            return ListView.builder(
-              itemCount: notes.length,
-              itemBuilder: (context, index) {
-                return Column(
-                  children: [
-                    Container(
-                      margin: EdgeInsets.symmetric(
-                          vertical: 4, horizontal: 8), // Add margin
-                      decoration: BoxDecoration(
-                        color:
-                            Colors.purple[50], // Light purple background color
-                        borderRadius:
-                            BorderRadius.circular(10), // Rounded borders
-                      ),
-                      child: ListTile(
-                        title: Text(
-                          _truncateText(notes[index], orientation),
-                        ),
-                        onTap: () {
-                          _showNoteDetailPage(
-                              context, notes[index], DateTime.now());
-                        },
-                        onLongPress: () {
-                          _showDeleteDialog(context, index);
-                        },
-                      ),
-                    ),
-                  ],
-                );
-              },
-            );
-          }
-        },
-      ),
+      body: _buildNoteList(),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           _showAddNoteDialog(context);
@@ -178,15 +74,42 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  String _truncateText(String text, Orientation orientation) {
-    if (orientation == Orientation.portrait) {
-      if (text.split(' ').length > 16) {
-        return '${text.split(' ').take(16).join(' ')} ...';
-      } else {
-        return text;
-      }
+  Widget _buildNoteList() {
+    if (notes.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'No notes found.',
+              style: TextStyle(fontSize: 18),
+            ),
+            SizedBox(height: 20),
+            SizedBox(
+              width: 120,
+              height: 120,
+              child: Image.asset('assets/images/no-data-icon.png'),
+            ),
+          ],
+        ),
+      );
     } else {
-      return text;
+      return ListView.builder(
+        itemCount: notes.length,
+        itemBuilder: (context, index) {
+          return ListTile(
+            title: Text(notes[index].note),
+            onTap: () {
+              setState(() {
+                selectedNote = notes[index].note;
+              });
+            },
+            onLongPress: () {
+              _showDeleteDialog(context, notes[index]);
+            },
+          );
+        },
+      );
     }
   }
 
@@ -210,12 +133,14 @@ class _HomePageState extends State<HomePage> {
               child: Text('Cancel'),
             ),
             TextButton(
-              onPressed: () {
-                setState(() {
-                  notes.add(noteController.text);
-                });
-                // DatabaseHelper.insertNote(
-                //     Note(id: indexo, content: noteController.text));
+              onPressed: () async {
+                DatabaseHelper databaseHelper = DatabaseHelper();
+                Note newNote = Note(
+                  note: noteController.text,
+                  timestamp: DateTime.now(),
+                );
+                await databaseHelper.insert(newNote);
+                _fetchNotesFromDatabase();
                 Navigator.pop(context);
               },
               child: Text('Add'),
@@ -226,7 +151,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _showDeleteDialog(BuildContext context, int index) {
+  void _showDeleteDialog(BuildContext context, Note note) {
     showDialog(
       context: context,
       builder: (context) {
@@ -241,17 +166,11 @@ class _HomePageState extends State<HomePage> {
               child: Text('No'),
             ),
             TextButton(
-              onPressed: () {
-                setState(() {
-                  if (index >= 0 && index < notes.length) {
-                    // Check if index is valid before removing
-                    if (selectedNote == notes[index]) {
-                      // If the note being deleted is selected, clear selectedNote
-                      selectedNote = '';
-                    }
-                    notes.removeAt(index);
-                  }
-                });
+              onPressed: () async {
+                DatabaseHelper databaseHelper = DatabaseHelper();
+                await databaseHelper
+                    .delete(note.id!); // Delete note from database
+                _fetchNotesFromDatabase();
                 Navigator.pop(context);
               },
               child: Text('Yes'),
@@ -259,16 +178,6 @@ class _HomePageState extends State<HomePage> {
           ],
         );
       },
-    );
-  }
-
-  void _showNoteDetailPage(
-      BuildContext context, String note, DateTime timestamp) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => NoteDetailPage(note: note, timestamp: timestamp),
-      ),
     );
   }
 }
